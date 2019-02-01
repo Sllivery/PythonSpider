@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/Maoyantopmovie.iml" filepath="$PROJECT_DIR$/.idea/Maoyantopmovie.iml" />
+      <module fileurl="file://$USER_HOME$/Documents/python/Seleniumstudy/.idea/Seleniumstudy.iml" filepath="$USER_HOME$/Documents/python/Seleniumstudy/.idea/Seleniumstudy.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../Stockingbango/.idea/Stockingbango.iml" filepath="$PROJECT_DIR$/../Stockingbango/.idea/Stockingbango.iml" />
+      <module fileurl="file://$USER_HOME$/Documents/python/Studytest/.idea/Studytest.iml" filepath="$USER_HOME$/Documents/python/Studytest/.idea/Studytest.iml" />
+      <module fileurl="file://$USER_HOME$/Documents/python/spidertest/.idea/spidertest.iml" filepath="$USER_HOME$/Documents/python/spidertest/.idea/spidertest.iml" />
+    </modules>
+  </component>
+</project>
