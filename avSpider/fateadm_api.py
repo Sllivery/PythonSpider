@@ -10,7 +10,7 @@ FATEA_PRED_URL = "http://pred.fateadm.com"
 
 def LOG(log):
     # 不需要测试时，注释掉日志就可以了
-    print(log)
+    # print(log)
     log = None
 
 
@@ -321,19 +321,16 @@ def TestFunc():
     # api.QueryBalc()
 
     # 通过文件形式识别
-    #result = api.PredictFromFileExtend(pred_type, file_name)   # 直接返回识别结果
+    api.SetHost(FATEA_PRED_URL)
+    result = api.PredictFromFileExtend(50100,"/Users/luxness/Desktop/test.png")   # 直接返回识别结果
     # rsp = api.PredictFromFile(pred_type, file_name)  # 返回详细识别结果
 
     # 如果不是通过文件识别，则调用Predict接口：
     #result = api.PredictExtend(pred_type,data)   	# 直接返回识别结果
     # rsp = api.Predict(pred_type, data)  # 返回详细的识别结果
 
-    api.SetHost(FATEA_PRED_URL)
-    data = "/Users/luxness/Desktop/test.png"
-    rsp = api.PredictFromFile(50100, data)
-    res = rsp.pred_rsp.value
-    return res
+    return result
 
 
 if __name__ == "__main__":
-    TestFunc(50100, "")
+    print(type(TestFunc()))
