@@ -46,7 +46,6 @@ def get_captcha():
         picture = Image.open("/Users/luxness/Desktop/test.png")
         picture = picture.crop(location)
         picture.save("/Users/luxness/Desktop/test.png")
-
         # 调用网站API
         result = fateadm_api.TestFunc()
         input_box = chrome.find_element_by_xpath("//*[@id='csessionid']")
