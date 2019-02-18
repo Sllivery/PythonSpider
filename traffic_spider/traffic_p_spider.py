@@ -15,6 +15,8 @@ from selenium.webdriver.support import expected_conditions as EC
 termination_info = TerminationStatusRecord("", "", "")
 # 记录重试次数，如果大于5次，跳过本次车辆种类
 termination_time = 0
+# 最新记录
+latest_record = {}
 
 class SpiderSchedule:
     """
@@ -109,6 +111,7 @@ class Spider:
     def __init__(self, url, t_author_num, t_sort_num, firefox):
         global termination_info
         global termination_time
+        global latest_record
         self.url = url
         self.city_name = ""
         self.t_author_num = t_author_num
@@ -146,6 +149,8 @@ class Spider:
                 Select(self.firefox.find_element_by_xpath('//*[@id="hpzl"]')).select_by_visible_text(option_tag2)
                 data_html = self.send_request(option, option_tag2)
                 data_ob = self.html_parser(data_html)
+                if data_ob.time[0:9] == time.strftime('%Y-%m-%d', time.localtime()):
+                    latest_record[(data_ob.author, data_ob.sort)] = data_ob
                 termination_info.sort_num = ""
 
     def send_request(self, author_num, sort_num):
