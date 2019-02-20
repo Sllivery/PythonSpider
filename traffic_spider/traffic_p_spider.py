@@ -1,10 +1,15 @@
 import time
+import datetime
 import fateadm_api
-from entity.DataEntity import *
+from email.mime.text import MIMEText
+from email.header import Header
+from smtplib import SMTP_SSL
+from DataEntity import *
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import *
+from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -17,17 +22,64 @@ termination_info = TerminationStatusRecord("", "", "")
 termination_time = 0
 # 最新记录
 latest_record = {}
+# 前_最新记录
+pre_record = {}
+
+def notify():
+    """"""
+
+
+class SendEmail:
+    def __init__(self, receiver_list, source_data):
+        self.receiver = receiver_list
+        self.message = ""
+        self.process_message(source_data)
+
+    def process_message(self, source_data):
+        for single_data in source_data:
+            head = ' '.join(single_data)
+            content = ' '.join(source_data[single_data])
+            single_full_m = head + ' ' + content + '\n'
+            self.message = self.message + single_full_m
+
+    def send_email(self):
+        host_server = 'smtp.163com'
+        sender_qq = 'reminder2019@163.com'
+        pwd = 'youxiang1'
+        sender_qq_mail = 'reminder2019@163.com'
+        receivers = self.receiver
+        mail_content = self.message
+        # 邮件标题
+        mail_title = '牌照放号提醒'
+
+        # ssl登录
+        smtp = SMTP_SSL(host_server)
+        smtp.set_debuglevel(1)
+        smtp.ehlo(host_server)
+        smtp.login(sender_qq, pwd)
+
+        msg = MIMEText(mail_content, "plain", 'utf-8')
+        msg["Subject"] = Header(mail_title, 'utf-8')
+        msg["From"] = sender_qq_mail
+        if len(receivers) > 1:
+            msg["To"] = ','.join(receivers)
+        else:
+            msg["To"] = receivers[0]
+        smtp.sendmail(sender_qq_mail, receivers, msg.as_string())
+        smtp.quit()
+
 
 class SpiderSchedule:
     """
     爬虫调度器
     根据队列中的url来循环或者选取url来给爬虫用
     """
-    def __init__(self):
+    def __init__(self, receiver_list):
         options = webdriver.FirefoxOptions()
         options.add_argument('-headless')
-        self.firefox = webdriver.Firefox()
+        self.firefox = webdriver.Firefox(options=options)
         self.firefox.implicitly_wait(10)
+        self.receiver_list = receiver_list
         self.list = [
             'http://bj.122.gov.cn/views/vehxhhdpub.html',
             'http://tj.122.gov.cn/views/vehxhhdpub.html',
@@ -93,18 +145,50 @@ class SpiderSchedule:
 
     def run_spider(self):
         global termination_time
+        global pre_record
+        global latest_record
+        print("爬虫运行中...")
+        send_data = {}
         while True:
             try:
                 for url in self.__get_right_list():
                         Spider(url, termination_info.author_num, termination_info.sort_num, self.firefox)
             except Exception as e:
-                termination_time += 1
+                print(e)
+                pass
             else:
-                print("列表抓取完毕，等待60秒重新开始")
-                termination_info.url = ""
-                termination_info.author_num = ""
-                termination_info.sort_num = ""
-                time.sleep(60)
+                print("列表抓取完毕，等待最新数据发送，重新开始")
+                if not pre_record:
+                    if latest_record:
+                        termination_info.url = ""
+                        termination_info.author_num = ""
+                        termination_info.sort_num = ""
+                        print('发送提醒信息')
+
+                        send_email = SendEmail(self.receiver_list, latest_record)
+                        send_email.send_email()
+                        time.sleep(60)
+                    pre_record = latest_record
+                    continue
+                if pre_record:
+                    for single_latest_record in latest_record:
+                        if single_latest_record in pre_record:
+                            latest_time = datetime.datetime.strptime(latest_record[single_latest_record][1],
+                                                                     '%Y-%m-%d %H:%M')
+                            pre_time = datetime.datetime.strptime(pre_record[single_latest_record][1],
+                                                                  '%Y-%m-%d %H:%M')
+                            if latest_time > pre_time:
+                                send_data[single_latest_record] = latest_record[single_latest_record]
+                    if send_data:
+                        pre_record = latest_record
+                        print('发送提醒信息')
+                        send_email = SendEmail(self.receiver_list, send_data)
+                        send_email.send_email()
+                        send_data = {}
+                        termination_info.url = ""
+                        termination_info.author_num = ""
+                        termination_info.sort_num = ""
+                        time.sleep(60)
 
 
 class Spider:
@@ -149,8 +233,9 @@ class Spider:
                 Select(self.firefox.find_element_by_xpath('//*[@id="hpzl"]')).select_by_visible_text(option_tag2)
                 data_html = self.send_request(option, option_tag2)
                 data_ob = self.html_parser(data_html)
-                if data_ob.time[0:9] == time.strftime('%Y-%m-%d', time.localtime()):
-                    latest_record[(data_ob.author, data_ob.sort)] = data_ob
+                if data_ob:
+                    if data_ob.time[0:9] == time.strftime('%Y-%m-%d', time.localtime()):
+                        latest_record[(data_ob.city_name, data_ob.author, data_ob.sort)] = [data_ob.num_range, data_ob.time]
                 termination_info.sort_num = ""
 
     def send_request(self, author_num, sort_num):
@@ -168,7 +253,7 @@ class Spider:
             captcha_image = self.firefox.find_element_by_xpath("/html/body/div[1]/div/table/tbod"
                                                                "y/tr[2]/td[2]/div/table/tbody/tr[2]/td[2]/div/span/img")
             time.sleep(1)
-            captcha_image.screenshot("/Users/luxness/Desktop/test.png")
+            captcha_image.screenshot("/root/test.png")
         except NoSuchElementException as e:
             self.firefox.delete_all_cookies()
             self.firefox.refresh()
@@ -213,19 +298,10 @@ class Spider:
 '''
 测试的函数，不用管
 '''
-def get_instance():
-    pass
-
-
-def test():
-    list1 = ["hey", "you", "what"]
-    print(list1.index("what"))
-    print(len(list1))
-    print(list1[1:])
 
 
 if __name__ == "__main__":
-    spider = SpiderSchedule()
+    spider = SpiderSchedule(['luxness.int@gmail.com'])
     spider.run_spider()
     # test()
 
