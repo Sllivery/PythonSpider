@@ -322,7 +322,7 @@ def TestFunc():
 
     # 通过文件形式识别
     api.SetHost(FATEA_PRED_URL)
-    result = api.PredictFromFileExtend(50100,"/Users/luxness/Desktop/test.png")   # 直接返回识别结果
+    result = api.PredictFromFileExtend(50100,"/root/test.png")   # 直接返回识别结果
     # rsp = api.PredictFromFile(pred_type, file_name)  # 返回详细识别结果
 
     # 如果不是通过文件识别，则调用Predict接口：

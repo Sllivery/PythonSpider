@@ -4,12 +4,11 @@ import fateadm_api
 from email.mime.text import MIMEText
 from email.header import Header
 from smtplib import SMTP_SSL
-from DataEntity import *
+from entity.DataEntity import *
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select
 from selenium.common.exceptions import *
-from selenium.webdriver.firefox.firefox_binary import FirefoxBinary
 from selenium.webdriver.common.alert import Alert
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -25,11 +24,68 @@ latest_record = {}
 # 前_最新记录
 pre_record = {}
 
-def notify():
-    """"""
+
+def notify(receiver_list, source_data, method=2):
+    """
+    定制提醒的方法
+    receiver_list: 收件人列表
+    source_data: 源数据，没有经过格式化
+    method: 提醒方法，1 = 短信， 2 = 邮箱， 默认为2
+    :return:
+    """
+
+    if method == 1:
+        send_text = SendNew(receiver_list, source_data)
+        send_text.send_text()
+    if method == 2:
+        send_email = SendNew(receiver_list, source_data)
+        send_email.send_email()
 
 
-class SendEmail:
+def pipeline(receiver_list):
+    """
+        在每次循环之后，数据的处理
+        send_data是作为一个容器，存放latest_record在pre_record里筛选后得到的最新数据
+    """
+    global pre_record
+    global latest_record
+    send_data = {}
+    if pre_record:
+        termination_info.url = ""
+        termination_info.author_num = ""
+        termination_info.sort_num = ""
+        for single_latest_record in latest_record:
+            if not (single_latest_record in pre_record):
+                send_data[single_latest_record] = latest_record[single_latest_record]
+            if single_latest_record in pre_record:
+                latest_time = datetime.datetime.strptime(latest_record[single_latest_record][1],
+                                                         '%Y-%m-%d %H:%M')
+                pre_time = datetime.datetime.strptime(pre_record[single_latest_record][1],
+                                                      '%Y-%m-%d %H:%M')
+                if latest_time > pre_time:
+                    send_data[single_latest_record] = latest_record[single_latest_record]
+        if send_data:
+            pre_record = latest_record
+            notify(receiver_list, send_data)
+
+    if not pre_record:
+        termination_info.url = ""
+        termination_info.author_num = ""
+        termination_info.sort_num = ""
+        if latest_record:
+            notify(receiver_list, latest_record)
+        pre_record = latest_record
+
+
+class SendNew:
+    """
+    调用send_text或者send_email时
+    发送的self.message是格式化过的
+
+    e.g:
+    城市名 车管所名 汽车类型 牌照范围 时间 \n <- 换行符
+    ...
+    """
     def __init__(self, receiver_list, source_data):
         self.receiver = receiver_list
         self.message = ""
@@ -42,8 +98,19 @@ class SendEmail:
             single_full_m = head + ' ' + content + '\n'
             self.message = self.message + single_full_m
 
+    def send_text(self):
+        """
+        发送短信的方法
+        :return:
+        """
+        pass
+
     def send_email(self):
-        host_server = 'smtp.163com'
+        """
+        发送邮件的方法
+        :return:
+        """
+        host_server = 'smtp.163.com'
         sender_qq = 'reminder2019@163.com'
         pwd = 'youxiang1'
         sender_qq_mail = 'reminder2019@163.com'
@@ -77,7 +144,7 @@ class SpiderSchedule:
     def __init__(self, receiver_list):
         options = webdriver.FirefoxOptions()
         options.add_argument('-headless')
-        self.firefox = webdriver.Firefox(options=options)
+        self.firefox = webdriver.Firefox()
         self.firefox.implicitly_wait(10)
         self.receiver_list = receiver_list
         self.list = [
@@ -136,6 +203,10 @@ class SpiderSchedule:
         ]
 
     def __get_right_list(self):
+        """
+        发生中断时，能够接着上次中断的url接着爬取
+        :return:
+        """
         global termination_info
         if termination_info.url == "":
             return self.list
@@ -144,55 +215,36 @@ class SpiderSchedule:
             return new_list
 
     def run_spider(self):
+        """
+        迭代全国交警url，交给Spider处理
+        :return:
+        """
         global termination_time
         global pre_record
         global latest_record
-        print("爬虫运行中...")
-        send_data = {}
         while True:
             try:
+                # 在这里迭代
                 for url in self.__get_right_list():
                         Spider(url, termination_info.author_num, termination_info.sort_num, self.firefox)
             except Exception as e:
                 print(e)
                 pass
             else:
-                print("列表抓取完毕，等待最新数据发送，重新开始")
-                if not pre_record:
-                    if latest_record:
-                        termination_info.url = ""
-                        termination_info.author_num = ""
-                        termination_info.sort_num = ""
-                        print('发送提醒信息')
-
-                        send_email = SendEmail(self.receiver_list, latest_record)
-                        send_email.send_email()
-                        time.sleep(60)
-                    pre_record = latest_record
-                    continue
-                if pre_record:
-                    for single_latest_record in latest_record:
-                        if single_latest_record in pre_record:
-                            latest_time = datetime.datetime.strptime(latest_record[single_latest_record][1],
-                                                                     '%Y-%m-%d %H:%M')
-                            pre_time = datetime.datetime.strptime(pre_record[single_latest_record][1],
-                                                                  '%Y-%m-%d %H:%M')
-                            if latest_time > pre_time:
-                                send_data[single_latest_record] = latest_record[single_latest_record]
-                    if send_data:
-                        pre_record = latest_record
-                        print('发送提醒信息')
-                        send_email = SendEmail(self.receiver_list, send_data)
-                        send_email.send_email()
-                        send_data = {}
-                        termination_info.url = ""
-                        termination_info.author_num = ""
-                        termination_info.sort_num = ""
-                        time.sleep(60)
+                # 每次循环结束后，进入这里处理数据
+                # 传一个空列表是因为在
+                print('循环一次')
+                pipeline(self.receiver_list)
 
 
 class Spider:
     def __init__(self, url, t_author_num, t_sort_num, firefox):
+        """
+        :param url: 当前城市的url
+        :param t_author_num: 如果中断，记录中断时车管所名字
+        :param t_sort_num: 记录中断时汽车类型
+        :param firefox: 浏览器对象
+        """
         global termination_info
         global termination_time
         global latest_record
@@ -205,8 +257,12 @@ class Spider:
         termination_info.url = self.url
         self.firefox.find_element_by_xpath('//*[@id="hpzl"]/option[1]')
         soup = BeautifulSoup(self.firefox.page_source, 'lxml')
+
+        # 得到这个省/城市的车管所的标签列表
         author_tag_list = soup.find('select', id='glbm').contents
         author_list = []
+
+        # 这个循环从每个标签提取车管所名字，并判断前面是否有中断，如果有中断，生成新的车管所列表。之前爬过的不要了
         for author_tag in author_tag_list:
             author_list.append(author_tag.get_text())
         if termination_info.author_num != "":
@@ -214,7 +270,11 @@ class Spider:
                 author_list = author_list[author_list.index(termination_info.author_num):]
             except ValueError as e:
                 author_list = author_list
+
+        # 得到当前省/城市名
         self.city_name = soup.find('span', class_='header-logo-top fL').get_text()[0:2]
+
+        # 在车管所、汽车型号循环里，迭代爬取信息
         for option in author_list:
             termination_info.author_num = option
             Select(self.firefox.find_element_by_xpath('//*[@id="glbm"]')).select_by_visible_text(option)
@@ -234,12 +294,18 @@ class Spider:
                 data_html = self.send_request(option, option_tag2)
                 data_ob = self.html_parser(data_html)
                 if data_ob:
-                    if data_ob.time[0:9] == time.strftime('%Y-%m-%d', time.localtime()):
+                    print(time.strftime('%Y-%m-%d', time.localtime()))
+                    if data_ob.time[0:10] == time.strftime('%Y-%m-%d', time.localtime()):
                         latest_record[(data_ob.city_name, data_ob.author, data_ob.sort)] = [data_ob.num_range, data_ob.time]
                 termination_info.sort_num = ""
 
     def send_request(self, author_num, sort_num):
-        # 保存当前循环的状态信息
+        """
+
+        :param author_num: 需要点击的车管所名字
+        :param sort_num: 需要点击的汽车类型名字
+        :return: 目标网页的html
+        """
         if self.url == 'https://sx.122.gov.cn/views/vehxhhdpub.html':
             self.firefox.refresh()
         author_num = author_num
@@ -269,13 +335,19 @@ class Spider:
         # 判断是否出现Alert
         if self.check_alert():
             self.check_alert().accept()
-            # 停顿0.5让页面黑幕div消失
-            time.sleep(5)
+            # 停顿3s,防止请求过多出现滑动验证
+            time.sleep(3)
             return self.send_request(author_num, sort_num)
+        # 网站的反爬虫是通过cookie的，每次请求完要清除一下cookie，就只会出现验证码
         self.firefox.delete_all_cookies()
         return self.firefox.page_source
 
     def html_parser(self, source):
+        """
+        用beautifulsoup解析页面，提取数据
+        :param source: 目标网页的html
+        :return: DataOB对象，保存着提取的数据
+        """
         soup = BeautifulSoup(source, 'lxml')
         latest_info = soup.find('table', class_='table table-striped').find('tbody').find('tr').contents
         while ' ' in latest_info:
@@ -288,6 +360,11 @@ class Spider:
         return dataob
 
     def check_alert(self):
+        """
+        有时候验证码识别错误，弹出一个alert
+        这个函数来处理这个alert
+        :return:
+        """
         try:
             alert = self.firefox.switch_to.alert
             return alert
@@ -295,13 +372,8 @@ class Spider:
             return False
 
 
-'''
-测试的函数，不用管
-'''
-
-
 if __name__ == "__main__":
+    # new SpiderSchedule时，要传入收信人的列表
     spider = SpiderSchedule(['luxness.int@gmail.com'])
     spider.run_spider()
-    # test()
 
