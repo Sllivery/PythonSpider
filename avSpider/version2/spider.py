@@ -22,7 +22,7 @@ class Spider:
         request = requests.get(self.url)
         parsed_html = request.text
         if 'protected by xxx' in parsed_html:
-            firefox = webdriver.Firefox # 另一个类处理浏览器这种情况
+            firefox = webdriver.Firefox # 另一个fjafjajfajfajfa类处理浏览器这种情况
         else:
             return parsed_html
         pass
