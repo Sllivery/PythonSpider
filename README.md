@@ -7,7 +7,7 @@ A simple spider contains several crawl methods can be specified to get japanese 
 # traffic_spider
 Use headless browser (selenium) simulation, to get car cards information and then send messages to inform
 users which range of cards has been published.
-It can be deploied at Linux.
-To process the QR code, I use a Ai OCR website here's the link http://www.fateadm.com,
+It can be deploied on Linux.
+To process the captcha, I use a AI OCR website here's the link http://www.fateadm.com,
 and api file is fateadm_api.py.
 
